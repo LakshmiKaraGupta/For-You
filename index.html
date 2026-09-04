@@ -400,153 +400,186 @@
 // so the rest of the code has an easy list to work with.
 const trackEls = Array.from(document.querySelectorAll('.track'));
 
-const playIcon  = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
-const pauseIcon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+const playIcon =
+  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+
+const pauseIcon =
+  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
 
 const tracks = trackEls.map((el, index) => ({
   el,
   index,
   audio: new Audio(el.dataset.src),
   btn: el.querySelector('.play-btn'),
-  fill: el.querySelector('.progress-fill'),
+  fill: el.querySelector('.progress-fill')
 }));
 
-// These variables keep track of "what is happening right now"
-let currentIndex = -1;      // which track (by position in the list) is playing
-let isShuffled = false;     // is shuffle turned on?
-let playOrder = tracks.map(t => t.index);  // the order songs will play in
-let playlistActive = false; // true once the big Play button has been used,
-                             // so songs know to auto-advance to the next one
+let currentIndex = -1;
+let isShuffled = false;
+let playOrder = tracks.map(t => t.index);
+let playlistActive = false;
 
 const playAllBtn = document.getElementById('playAllBtn');
 const playAllLabel = document.getElementById('playAllLabel');
 const shuffleBtn = document.getElementById('shuffleBtn');
 const nowPlaying = document.getElementById('nowPlaying');
 
-// Turns [0,1,2,3...] into a randomly reordered list (Fisher-Yates shuffle).
-function shuffledOrder(){
+function shuffledOrder() {
   const arr = tracks.map(t => t.index);
+
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
+
   return arr;
 }
 
-// Updates the big top button's icon + label. Only called from the
-// "play"/"pause" events below, never guessed — that's what keeps it
-// from ever getting stuck showing the wrong state.
-function setMasterButton(isPlaying){
+function setMasterButton(isPlaying) {
   document.getElementById('playAllIcon').outerHTML =
-    (isPlaying ? pauseIcon : playIcon).replace('<svg', '<svg id="playAllIcon"');
+    (isPlaying ? pauseIcon : playIcon).replace(
+      '<svg',
+      '<svg id="playAllIcon"'
+    );
+
   playAllLabel.textContent = isPlaying ? 'Pause' : 'Play';
 }
 
-// Starts playing one specific track (by its position in "tracks").
-// Any other track that happens to be mid-song gets stopped first.
-function playTrackAt(position){
-  tracks.forEach((t, i) => {
-    if (i !== position && !t.audio.paused) {
-      t.audio.pause();
-      t.audio.currentTime = 0;
+function stopAllExcept(position) {
+  tracks.forEach((track, i) => {
+    if (i !== position) {
+      track.audio.pause();
+      track.audio.currentTime = 0;
+
+      track.btn.innerHTML = playIcon;
+      track.btn.classList.remove('playing');
+      track.el.classList.remove('is-current');
+      track.fill.style.width = '0%';
     }
-  });
-  currentIndex = position;
-  const track = tracks[position];
-  // .play() can fail (for example if the mp3 file isn't actually there yet) —
-  // if it does, we catch that instead of leaving the buttons stuck.
-  track.audio.play().catch(() => {
-    nowPlaying.textContent = "couldn't play that file — check it's uploaded and the name matches";
   });
 }
 
-// When a song finishes, automatically move to the next one in the
-// playlist order — but only if the big Play button started this session.
-function playNext(){
-  if (!playlistActive) return;
-  const posInOrder = playOrder.indexOf(tracks[currentIndex].index);
-  const nextPos = posInOrder + 1;
+function playTrackAt(position) {
+  stopAllExcept(position);
+
+  currentIndex = position;
+
+  tracks[position].audio.play().catch(() => {
+    nowPlaying.textContent =
+      "Couldn't play that file. Check the filename matches exactly.";
+  });
+}
+
+function playNext() {
+  if (!playlistActive || currentIndex === -1) return;
+
+  const currentTrackNumber = tracks[currentIndex].index;
+  const currentPosInOrder = playOrder.indexOf(currentTrackNumber);
+
+  const nextPos = currentPosInOrder + 1;
+
   if (nextPos < playOrder.length) {
     playTrackAt(playOrder[nextPos]);
   } else {
     playlistActive = false;
     currentIndex = -1;
     nowPlaying.innerHTML = '&nbsp;';
+    setMasterButton(false);
   }
 }
 
-// ---- Everything below reacts to what the audio is ACTUALLY doing ----
-// This is the important fix: instead of manually flipping icons in every
-// click handler (easy to get out of sync), each track listens to its own
-// audio element's real "play" and "pause" events and updates itself from
-// that. There's only ever one source of truth.
-tracks.forEach((track) => {
+tracks.forEach(track => {
   track.audio.addEventListener('play', () => {
     track.btn.innerHTML = pauseIcon;
     track.btn.classList.add('playing');
     track.el.classList.add('is-current');
-    nowPlaying.textContent = 'now playing — ' + track.el.querySelector('.track-title').textContent;
-    if (currentIndex === track.index) setMasterButton(true);
+
+    nowPlaying.textContent =
+      'Now Playing • ' +
+      track.el.querySelector('.track-title').textContent;
+
+    setMasterButton(true);
   });
 
   track.audio.addEventListener('pause', () => {
     track.btn.innerHTML = playIcon;
     track.btn.classList.remove('playing');
-    if (currentIndex === track.index) setMasterButton(false);
+
+    setMasterButton(false);
   });
 
   track.audio.addEventListener('timeupdate', () => {
     if (track.audio.duration) {
-      track.fill.style.width = (track.audio.currentTime / track.audio.duration * 100) + '%';
+      const percent =
+        (track.audio.currentTime / track.audio.duration) * 100;
+
+      track.fill.style.width = percent + '%';
     }
   });
 
   track.audio.addEventListener('ended', () => {
-    track.el.classList.remove('is-current');
     track.fill.style.width = '0%';
+    track.el.classList.remove('is-current');
+
     playNext();
   });
 
   track.btn.addEventListener('click', () => {
-    if (!track.audio.paused) {
+
+    if (currentIndex === track.index && !track.audio.paused) {
+
       track.audio.pause();
+
+    } else if (currentIndex === track.index && track.audio.paused) {
+
+      track.audio.play();
+
     } else {
+
       playlistActive = true;
       playTrackAt(track.index);
+
     }
-    }
+
   });
 });
 
-// The big "Play" button: starts the whole playlist from the beginning,
-// or pauses/resumes whatever is currently playing.
 playAllBtn.addEventListener('click', () => {
-  if (playlistActive && currentIndex !== -1) {
+
+  if (currentIndex !== -1) {
+
     const current = tracks[currentIndex];
+
     if (current.audio.paused) {
       current.audio.play();
     } else {
       current.audio.pause();
     }
+
     return;
   }
-  // starting fresh
+
   playlistActive = true;
-  playOrder = isShuffled ? shuffledOrder() : tracks.map(t => t.index);
+
+  playOrder = isShuffled
+    ? shuffledOrder()
+    : tracks.map(t => t.index);
+
   playTrackAt(playOrder[0]);
+
 });
 
-// Shuffle toggle: just flips a setting and re-lights the button.
-// If a playlist is already running, it reshuffles the songs that
-// haven't played yet.
 shuffleBtn.addEventListener('click', () => {
+
   isShuffled = !isShuffled;
+
   shuffleBtn.classList.toggle('active', isShuffled);
-  if (playlistActive) {
-    playOrder = isShuffled ? shuffledOrder() : tracks.map(t => t.index);
-  }
-});
-</script>
+
+  playOrder = isShuffled
+    ? shuffledOrder()
+    : tracks.map(t => t.index);
+
+});</script>
 
 </body>
 </html>
