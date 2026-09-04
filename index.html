@@ -409,7 +409,10 @@ const pauseIcon =
 const tracks = trackEls.map((el, index) => ({
   el,
   index,
-  audio: new Audio(el.dataset.src),
+  // encodeURI turns spaces and other special characters in the filename
+  // (like "The Metro Proposal.flac") into a form the browser can safely
+  // load. Without this, a filename with a space can silently fail to load.
+  audio: new Audio(encodeURI(el.dataset.src)),
   btn: el.querySelector('.play-btn'),
   fill: el.querySelector('.progress-fill')
 }));
@@ -464,9 +467,16 @@ function playTrackAt(position) {
 
   currentIndex = position;
 
-  tracks[position].audio.play().catch(() => {
+  tracks[position].audio.play().catch((err) => {
+    // Log the real reason to the browser console (press F12 or
+    // right-click -> Inspect -> Console to see it) so it's easy to
+    // tell a missing file apart from a format/hosting problem.
+    console.error('Playback failed for', tracks[position].audio.src, err);
+
     nowPlaying.textContent =
-      "Couldn't play that file. Check the filename matches exactly.";
+      "Couldn't play \"" +
+      tracks[position].el.querySelector('.track-title').textContent +
+      "\". See console for details.";
   });
 }
 
