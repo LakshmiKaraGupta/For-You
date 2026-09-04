@@ -319,7 +319,7 @@
            3) the text inside track-meta   -> the artist name
     -->
     <div id="tracklist">
-      <div class="track" data-src="The Metro Proposal.flac">
+      <div class="track" data-src="The Metro Proposal.mp3">
         <button class="play-btn" aria-label="Play">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         </button>
@@ -410,7 +410,7 @@ const tracks = trackEls.map((el, index) => ({
   el,
   index,
   // encodeURI turns spaces and other special characters in the filename
-  // (like "The Metro Proposal.flac") into a form the browser can safely
+  // (like "The Metro Proposal.mp3") into a form the browser can safely
   // load. Without this, a filename with a space can silently fail to load.
   audio: new Audio(encodeURI(el.dataset.src)),
   btn: el.querySelector('.play-btn'),
