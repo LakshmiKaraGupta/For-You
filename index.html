@@ -508,14 +508,12 @@ tracks.forEach((track) => {
   });
 
   track.btn.addEventListener('click', () => {
-    if (currentIndex === track.index && !track.audio.paused) {
+    if (!track.audio.paused) {
       track.audio.pause();
     } else {
-      // clicking a single song plays just that song, then continues
-      // into the rest of the playlist afterward
       playlistActive = true;
-      playOrder = isShuffled ? shuffledOrder() : tracks.map(t => t.index);
       playTrackAt(track.index);
+    }
     }
   });
 });
