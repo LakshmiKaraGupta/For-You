@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#F6F3EC" />
 <title>For This Moment</title>
 <meta name="description" content="A few songs, for while you read." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -200,24 +201,27 @@
   .hint{
     font-size: 13px;
     color: var(--gray);
-    margin: 18px 0 0;
+    margin: 26px 0 0;   /* was 18px  a little more breathing room from the button */
     font-style: italic;
     font-family: var(--serif);
   }
 
-  /* ---------------- Player section ---------------- */
-
+  /* ---------------- Player section ----------------
+     Hidden with display:none by default so it takes up NO space
+     on first load  this is what keeps the opening screen to a
+     single page instead of leaving a stretch of empty scroll
+     beneath the button. JS switches this to display:block right
+     before fading it in. */
   .player-section{
+    display: none;
     padding: 8px 0 64px;
     opacity: 0;
     transform: translateY(14px);
     transition: opacity 0.9s ease, transform 0.9s ease;
-    pointer-events: none;
   }
   .player-section.visible{
     opacity: 1;
     transform: translateY(0);
-    pointer-events: auto;
   }
 
   .player-heading{
@@ -472,9 +476,11 @@
     50%{ transform: scaleY(1); }
   }
 
-  /* ---------------- Letter reminder ---------------- */
-
+  /* ---------------- Letter reminder ----------------
+     Same display:none trick as the player section, so it doesn't
+     add empty scroll space before it's revealed. */
   .letter-note{
+    display: none;
     padding: 56px 0 40px;
     text-align: center;
     opacity: 0;
@@ -504,7 +510,14 @@
   .closing{
     padding: 20px 0 72px;
     text-align: center;
-  } 
+  }
+  .closing-text{
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 15px;
+    color: var(--gray);
+    margin: 16px 0 0;
+  }
 
   /* focus ring reset for mouse users, kept for keyboard */
   :focus:not(:focus-visible){ outline: none; }
@@ -605,6 +618,7 @@
     <svg class="mark-small" viewBox="0 0 48 48" aria-hidden="true">
       <path d="M4,10 L44,10 L44,38 L4,38 Z M4,10 L24,26 L44,10" />
     </svg>
+    <p class="closing-text">With love.</p>
   </section>
 
 </main>
@@ -620,7 +634,6 @@
 
    For each song, fill in:
      title : the song name, as text
-     artist: the artist name, as text
      src   : the path (or web address) to the actual audio file
 
    "src" needs to point to a real mp3/m4a file. Two easy ways to do this:
@@ -716,7 +729,7 @@
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "song-item";
-    btn.setAttribute("aria-label", "Play " + song.title + " by " + song.artist);
+    btn.setAttribute("aria-label", "Play " + song.title);
     btn.dataset.index = index;
 
     btn.innerHTML =
@@ -724,12 +737,10 @@
       '<span class="eq" aria-hidden="true"><span></span><span></span><span></span></span>' +
       '<span class="song-info">' +
         '<p class="t"></p>' +
-        '<p class="a"></p>' +
       '</span>' +
       '<span class="song-duration">&ndash;:&ndash;&ndash;</span>';
 
     btn.querySelector(".t").textContent = song.title;
-    btn.querySelector(".a").textContent = song.artist;
 
     btn.addEventListener("click", function () {
       loadSong(index);
@@ -770,7 +781,6 @@
     const song = PLAYLIST[currentIndex];
     audio.src = song.src;
     nowTitleEl.textContent = song.title;
-    nowArtistEl.textContent = song.artist;
     seek.value = 0;
     renderWaveform(song.bars);
     updateWaveformProgress(0);
@@ -807,13 +817,20 @@
     loadSong(0);
     play();
 
+    // Switch on display first (so the fade-in has something to animate),
+    // force a reflow, then add the class that triggers the fade/slide.
+    playerSection.style.display = "block";
+    letterNote.style.display = "block";
+    void playerSection.offsetHeight;
     playerSection.classList.add("visible");
     letterNote.classList.add("visible");
 
-    // Gently bring the player into view once it's revealed.
-    requestAnimationFrame(function () {
+    // Give the person a beat to notice the music has started before the
+    // page moves under them  a scroll that happens the instant you tap
+    // feels jarring; a short pause first feels intentional.
+    setTimeout(function () {
       playerSection.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
+    }, 550);
   }
 
   startBtn.addEventListener("click", revealAndStart);
